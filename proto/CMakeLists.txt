@@ -1,34 +1,30 @@
-cmake_minimum_required(VERSION 3.15)
+cmake_minimum_required(VERSION 3.16)
 project(ProtoObjects)
 
-include(FetchContent)
-FetchContent_Declare(
-  gRPC
-  GIT_REPOSITORY https://github.com/grpc/grpc
-  GIT_TAG        v1.49.2
-  )
-set(FETCHCONTENT_QUIET OFF)
-FetchContent_MakeAvailable(gRPC)
+find_package(Protobuf CONFIG REQUIRED)
+find_package(gRPC CONFIG REQUIRED)
+find_package(Threads)
+
+set(
+    PROTO_FILES
+        ProtoObjects/helloworld.proto
+)
 
 add_library(
-    proto-objects
+    ProtoObjects ${PROTO_FILES}
+)
+
+target_link_libraries(
+    ProtoObjects
         PUBLIC
-            grpc++
+            protobuf::libprotobuf
+            gRPC::grpc
+            gRPC::grpc++
+)
+target_include_directories(
+    ProtoObjects PUBLIC ${CMAKE_CURRENT_BINARY_DIR}
 )
 
-target_include_directories(proto-objects PUBLIC "$<BUILD_INTERFACE:${PROTO_GENERATED_DIR}>")
-
-protobuf_generate(
-    TARGET proto-objects
-    IMPORT_DIRS ${PROTO_IMPORT_DIRS}
-    PROTOC_OUT_DIR ${PROTO_GENERATED_DIR}
-)
-
-protobuf_generate(
-    TARGET proto-objects
-    LANGUAGE grpc
-    GENERATE_EXTENSIONS .grpc.pb.h .grpc.pb.cc
-    PLUGIN "protoc-gen-grpc=\$<TARGET_FILE:gRPC::grpc_cpp_plugin>"
-    IMPORT_DIRS ${PROTO_IMPORT_DIRS}
-    PROTOC_OUT_DIR "${PROTO_GENERATED_DIR}"
-)
+get_target_property(grpc_cpp_plugin_location gRPC::grpc_cpp_plugin LOCATION)
+protobuf_generate(TARGET ProtoObjects LANGUAGE cpp)
+protobuf_generate(TARGET ProtoObjects LANGUAGE grpc GENERATE_EXTENSIONS .grpc.pb.h .grpc.pb.cc PLUGIN "protoc-gen-grpc=${grpc_cpp_plugin_location}")
